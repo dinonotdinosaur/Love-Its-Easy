@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
 import { extractYoutubeId, formatTogetherDuration } from "./duration";
+import { YoutubeEmbed } from "./YoutubeEmbed";
 
 /**
  * «Наша история» (обобщение "100 дней отношений", AGENTS.md §3a):
@@ -34,17 +35,7 @@ export default function NashaIstoriya({ page }: TemplateProps) {
         )}
       </div>
 
-      {youtubeId && (
-        <div className="aspect-video w-full overflow-hidden rounded-2xl">
-          <iframe
-            className="h-full w-full"
-            src={`https://www.youtube.com/embed/${youtubeId}`}
-            title="YouTube видео"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
-      )}
+      {youtubeId && <YoutubeEmbed videoId={youtubeId} />}
 
       <div className="relative flex flex-col gap-8 border-l-2 border-rose-200 pl-6 dark:border-rose-900">
         {milestones.map((milestone, index) => {

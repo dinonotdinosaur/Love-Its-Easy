@@ -1,27 +1,40 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
 
 const NO_BUTTON_SIZE = { width: 120, height: 56 };
 const TORMENT_DURATION_MS = 10_000;
+/** Курсор ближе этого расстояния до центра кнопки — считаем, что "подкрадываются". */
+const DANGER_RADIUS_PX = 90;
+/** Не даём убегать чаще этого интервала — иначе на быстром движении мыши будет дёргано. */
+const MIN_DODGE_INTERVAL_MS = 300;
 
 const TAUNTS = ["Не поймать! 😏", "Ты серьёзно? 😄", "Всё ещё пытаешься? 😅"];
 
 /**
  * «Выбери свидание» (love_its_easy.md §6): опрос с "убегающей кнопкой"
- * ответа "Нет". Кнопка убегает от курсора/тапа ~10 секунд (можно
- * "помучить" партнёра), не залезая на кнопку "Да", а затем перестаёт
- * реагировать и уступает место финальной карте с вариантами свидания.
+ * ответа "Нет". Кнопка чувствует приближение курсора/пальца (не только
+ * прямое попадание) и убегает от него ~10 секунд подряд, не залезая на
+ * заголовок и кнопку "Да" (запретная зона — вся верхняя полоса контейнера),
+ * а затем перестаёт реагировать и уступает место финальной карте.
+ *
+ * Позиция анимируется через `x`/`y` (transform), а не `left`/`top`: если
+ * смешать в одном `animate`-объекте неанимируемое свойство `position` с
+ * числовыми `left`/`top`, Framer Motion после нескольких вызовов перестаёт
+ * реагировать на новые целевые координаты — воспроизведено и подтверждено
+ * вручную (кнопка "залипала" на месте, хотя React-состояние обновлялось).
  */
 export default function VyberiSvidanie({ page }: TemplateProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const noButtonRef = useRef<HTMLButtonElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const startedAtRef = useRef<number | null>(null);
+  const lastDodgeAtRef = useRef(0);
 
-  const [noPos, setNoPos] = useState<{ x: number; y: number } | null>(null);
+  const [noOffset, setNoOffset] = useState<{ x: number; y: number } | null>(null);
   const [dodges, setDodges] = useState(0);
   const [teased, setTeased] = useState(false);
   const [answered, setAnswered] = useState(false);
@@ -29,53 +42,61 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
   const question = page.fields.question || "Пойдёшь со мной на свидание?";
   const dateOptions = page.groups.dateOptions ?? [];
 
-  function pickSafePosition(container: HTMLDivElement, avoid: DOMRect | null) {
+  const pickSafeOffset = useCallback((container: HTMLDivElement, forbiddenBottomY: number) => {
     const rect = container.getBoundingClientRect();
     const maxX = Math.max(rect.width - NO_BUTTON_SIZE.width, 0);
-    const maxY = Math.max(rect.height - NO_BUTTON_SIZE.height, 0);
+    const minY = Math.min(forbiddenBottomY, Math.max(rect.height - NO_BUTTON_SIZE.height, 0));
+    const maxY = Math.max(rect.height - NO_BUTTON_SIZE.height, minY);
 
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const x = Math.random() * maxX;
-      const y = Math.random() * maxY;
-      if (
-        !avoid ||
-        x + NO_BUTTON_SIZE.width < avoid.left ||
-        x > avoid.right ||
-        y + NO_BUTTON_SIZE.height < avoid.top ||
-        y > avoid.bottom
-      ) {
-        return { x, y };
-      }
-    }
-    return { x: 0, y: 0 };
-  }
+    return {
+      x: Math.random() * maxX,
+      y: minY + Math.random() * (maxY - minY),
+    };
+  }, []);
 
-  function dodgeNoButton() {
+  const dodgeNoButton = useCallback(() => {
     if (teased) return;
     const container = containerRef.current;
     if (!container) return;
 
+    const now = Date.now();
+    if (now - lastDodgeAtRef.current < MIN_DODGE_INTERVAL_MS) return;
+
     if (startedAtRef.current === null) {
-      startedAtRef.current = Date.now();
+      startedAtRef.current = now;
     }
-    if (Date.now() - startedAtRef.current >= TORMENT_DURATION_MS) {
+    if (now - startedAtRef.current >= TORMENT_DURATION_MS) {
       setTeased(true);
       return;
     }
 
-    const containerRect = container.getBoundingClientRect();
-    const yesRect = yesButtonRef.current?.getBoundingClientRect() ?? null;
-    const avoidRect = yesRect
-      ? new DOMRect(
-          yesRect.left - containerRect.left - 16,
-          yesRect.top - containerRect.top - 16,
-          yesRect.width + 32,
-          yesRect.height + 32,
-        )
-      : null;
+    lastDodgeAtRef.current = now;
 
-    setNoPos(pickSafePosition(container, avoidRect));
+    const containerRect = container.getBoundingClientRect();
+    // Запретная зона — вся полоса от верха контейнера до низа кнопки "Да"
+    // (с запасом), а не только рамка вокруг "Да": так кнопка "Нет" не может
+    // оказаться и на заголовке-вопросе, который всегда выше "Да".
+    const yesRect = yesButtonRef.current?.getBoundingClientRect();
+    const forbiddenBottomY = yesRect ? yesRect.bottom - containerRect.top + 16 : 0;
+
+    setNoOffset(pickSafeOffset(container, forbiddenBottomY));
     setDodges((d) => d + 1);
+  }, [teased, pickSafeOffset]);
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (teased) return;
+    const noButton = noButtonRef.current;
+    if (!noButton) return;
+
+    const buttonRect = noButton.getBoundingClientRect();
+    const distance = Math.hypot(
+      event.clientX - (buttonRect.left + buttonRect.width / 2),
+      event.clientY - (buttonRect.top + buttonRect.height / 2),
+    );
+
+    if (distance < DANGER_RADIUS_PX) {
+      dodgeNoButton();
+    }
   }
 
   if (answered) {
@@ -109,6 +130,7 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
   return (
     <div
       ref={containerRef}
+      onPointerMove={handlePointerMove}
       className="relative mx-auto flex h-[70vh] min-h-[420px] w-full max-w-xl flex-col items-center gap-10 overflow-hidden px-4 py-16 text-center"
     >
       <h1 className="text-2xl font-bold sm:text-3xl">{question}</h1>
@@ -123,11 +145,12 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
       </button>
 
       <motion.button
+        ref={noButtonRef}
         type="button"
         disabled={teased}
-        onClick={dodgeNoButton}
-        onMouseEnter={dodgeNoButton}
-        animate={noPos ? { position: "absolute", left: noPos.x, top: noPos.y } : {}}
+        onPointerDown={dodgeNoButton}
+        style={noOffset ? { position: "absolute", left: 0, top: 0 } : undefined}
+        animate={noOffset ? { x: noOffset.x, y: noOffset.y } : undefined}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
         className={`flex h-14 items-center justify-center rounded-full border px-8 text-lg font-medium transition-opacity ${
           teased

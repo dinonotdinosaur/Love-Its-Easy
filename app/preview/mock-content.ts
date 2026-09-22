@@ -54,7 +54,7 @@ export const PREVIEW_CONTENT: Record<TemplateSlug, ResolvedPageContent> = {
 
   "priznanie-v-lyubvi": {
     templateSlug: "priznanie-v-lyubvi",
-    fields: {},
+    fields: { endingQuestion: "Ты будешь со мной?" },
     groups: {
       lines: [
         { fields: { text: "Каждый день с тобой — подарок." } },

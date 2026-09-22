@@ -127,7 +127,15 @@ export const TEMPLATE_FIELD_SCHEMAS: Record<TemplateSlug, TemplateFieldSchema> =
   // «Признание в любви»: эффект печатной машинки + 3D-сердца на фоне.
   "priznanie-v-lyubvi": {
     slug: "priznanie-v-lyubvi",
-    fields: [],
+    fields: [
+      {
+        key: "endingQuestion",
+        label: "Финальный вопрос (после признания)",
+        type: "text",
+        maxLength: 100,
+        placeholder: "Ты будешь со мной?",
+      },
+    ],
     groups: [
       {
         key: "lines",
