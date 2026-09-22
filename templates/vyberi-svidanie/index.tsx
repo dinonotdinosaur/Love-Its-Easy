@@ -5,31 +5,76 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
 
+const NO_BUTTON_SIZE = { width: 120, height: 56 };
+const TORMENT_DURATION_MS = 10_000;
+
+const TAUNTS = ["Не поймать! 😏", "Ты серьёзно? 😄", "Всё ещё пытаешься? 😅"];
+
 /**
  * «Выбери свидание» (love_its_easy.md §6): опрос с "убегающей кнопкой"
- * ответа "Нет" и финальной картой с вариантами свидания. Кнопка "Нет"
- * при попытке нажать перепрыгивает в случайное место внутри контейнера —
- * работает одинаково для курсора и тапа, что важно Mobile First.
+ * ответа "Нет". Кнопка убегает от курсора/тапа ~10 секунд (можно
+ * "помучить" партнёра), не залезая на кнопку "Да", а затем перестаёт
+ * реагировать и уступает место финальной карте с вариантами свидания.
  */
 export default function VyberiSvidanie({ page }: TemplateProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const yesButtonRef = useRef<HTMLButtonElement>(null);
+  const startedAtRef = useRef<number | null>(null);
+
   const [noPos, setNoPos] = useState<{ x: number; y: number } | null>(null);
   const [dodges, setDodges] = useState(0);
+  const [teased, setTeased] = useState(false);
   const [answered, setAnswered] = useState(false);
 
   const question = page.fields.question || "Пойдёшь со мной на свидание?";
   const dateOptions = page.groups.dateOptions ?? [];
 
+  function pickSafePosition(container: HTMLDivElement, avoid: DOMRect | null) {
+    const rect = container.getBoundingClientRect();
+    const maxX = Math.max(rect.width - NO_BUTTON_SIZE.width, 0);
+    const maxY = Math.max(rect.height - NO_BUTTON_SIZE.height, 0);
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const x = Math.random() * maxX;
+      const y = Math.random() * maxY;
+      if (
+        !avoid ||
+        x + NO_BUTTON_SIZE.width < avoid.left ||
+        x > avoid.right ||
+        y + NO_BUTTON_SIZE.height < avoid.top ||
+        y > avoid.bottom
+      ) {
+        return { x, y };
+      }
+    }
+    return { x: 0, y: 0 };
+  }
+
   function dodgeNoButton() {
+    if (teased) return;
     const container = containerRef.current;
     if (!container) return;
-    const { width, height } = container.getBoundingClientRect();
-    const buttonWidth = 120;
-    const buttonHeight = 48;
-    setNoPos({
-      x: Math.random() * Math.max(width - buttonWidth, 0),
-      y: Math.random() * Math.max(height - buttonHeight, 0),
-    });
+
+    if (startedAtRef.current === null) {
+      startedAtRef.current = Date.now();
+    }
+    if (Date.now() - startedAtRef.current >= TORMENT_DURATION_MS) {
+      setTeased(true);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const yesRect = yesButtonRef.current?.getBoundingClientRect() ?? null;
+    const avoidRect = yesRect
+      ? new DOMRect(
+          yesRect.left - containerRect.left - 16,
+          yesRect.top - containerRect.top - 16,
+          yesRect.width + 32,
+          yesRect.height + 32,
+        )
+      : null;
+
+    setNoPos(pickSafePosition(container, avoidRect));
     setDodges((d) => d + 1);
   }
 
@@ -59,6 +104,8 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
     );
   }
 
+  const taunt = TAUNTS[Math.min(Math.floor(dodges / 3), TAUNTS.length - 1)];
+
   return (
     <div
       ref={containerRef}
@@ -67,6 +114,7 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
       <h1 className="text-2xl font-bold sm:text-3xl">{question}</h1>
 
       <button
+        ref={yesButtonRef}
         type="button"
         onClick={() => setAnswered(true)}
         className="flex h-14 items-center justify-center rounded-full bg-rose-500 px-8 text-lg font-medium text-white transition-colors hover:bg-rose-600"
@@ -76,25 +124,42 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
 
       <motion.button
         type="button"
+        disabled={teased}
         onClick={dodgeNoButton}
         onMouseEnter={dodgeNoButton}
         animate={noPos ? { position: "absolute", left: noPos.x, top: noPos.y } : {}}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
-        className="flex h-14 items-center justify-center rounded-full border border-black/10 px-8 text-lg font-medium dark:border-white/20"
+        className={`flex h-14 items-center justify-center rounded-full border px-8 text-lg font-medium transition-opacity ${
+          teased
+            ? "border-black/10 text-zinc-400 dark:border-white/10 dark:text-zinc-600"
+            : "border-black/10 dark:border-white/20"
+        }`}
       >
         Нет
       </motion.button>
 
-      <AnimatePresence>
-        {dodges >= 3 && (
+      <AnimatePresence mode="wait">
+        {teased ? (
           <motion.p
+            key="teased"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-sm text-zinc-500"
+            className="text-sm font-medium text-rose-500"
           >
             Кажется, «нет» не вариант 😉
           </motion.p>
+        ) : (
+          dodges >= 3 && (
+            <motion.p
+              key="taunt"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-sm text-zinc-500"
+            >
+              {taunt}
+            </motion.p>
+          )
         )}
       </AnimatePresence>
     </div>

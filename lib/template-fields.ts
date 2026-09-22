@@ -43,7 +43,15 @@ export const TEMPLATE_FIELD_SCHEMAS: Record<TemplateSlug, TemplateFieldSchema> =
   // анимацией (love_its_easy.md §6).
   "ty-samaya-krasivaya": {
     slug: "ty-samaya-krasivaya",
-    fields: [],
+    fields: [
+      {
+        key: "finalMessage",
+        label: "Финальное сообщение (появится, когда открыты все карточки)",
+        type: "textarea",
+        maxLength: 200,
+        placeholder: "И это ещё не все причины, почему я тебя люблю…",
+      },
+    ],
     groups: [
       {
         key: "cards",

@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
+
+const DEFAULT_FINAL_MESSAGE = "И это ещё не все причины, почему я тебя люблю…";
 
 /**
  * «Ты самая красивая» (love_its_easy.md §6): карточки с текстом и фото,
  * анимация раскрытия. Каждая карточка стартует закрытой и переворачивается
- * по тапу/клику.
+ * по тапу/клику. После того как открыты все карточки — финальное сообщение
+ * (текст задаёт создатель квеста, поле `finalMessage`).
  */
 export default function TySamayaKrasivaya({ page }: TemplateProps) {
   const cards = page.groups.cards ?? [];
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const allRevealed = cards.length > 0 && revealed.size === cards.length;
 
   function toggle(index: number) {
     setRevealed((prev) => {
@@ -28,7 +32,7 @@ export default function TySamayaKrasivaya({ page }: TemplateProps) {
       <h1 className="text-center text-2xl font-bold sm:text-3xl">Ты самая красивая</h1>
       <p className="text-center text-sm text-zinc-500">Нажми на карточку, чтобы раскрыть её</p>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="flex flex-wrap justify-center gap-4">
         {cards.map((card, index) => {
           const isOpen = revealed.has(index);
           return (
@@ -36,7 +40,7 @@ export default function TySamayaKrasivaya({ page }: TemplateProps) {
               key={index}
               type="button"
               onClick={() => toggle(index)}
-              className="aspect-[3/4] [perspective:1000px]"
+              className="aspect-[3/4] w-32 shrink-0 [perspective:1000px] sm:w-36"
               aria-label={isOpen ? "Скрыть карточку" : "Раскрыть карточку"}
             >
               <motion.div
@@ -61,6 +65,18 @@ export default function TySamayaKrasivaya({ page }: TemplateProps) {
           );
         })}
       </div>
+
+      <AnimatePresence>
+        {allRevealed && (
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-2 text-center text-lg font-medium text-rose-500"
+          >
+            {page.fields.finalMessage || DEFAULT_FINAL_MESSAGE}
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
