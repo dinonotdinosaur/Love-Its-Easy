@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { TariffCard } from "@/app/_components/TariffCard";
 import { BASE_TARIFFS, SECONDARY_TARIFFS, TEMPLATE_TITLES } from "@/lib/tariffs";
 
@@ -56,8 +58,19 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-black/10 px-4 py-6 text-center text-sm text-zinc-500 dark:border-white/10 sm:px-6">
-        © {new Date().getFullYear()} loveitseasy
+      <footer className="flex flex-col items-center gap-2 border-t border-black/10 px-4 py-6 text-center text-sm text-zinc-500 dark:border-white/10 sm:px-6">
+        <div className="flex gap-4">
+          <Link href="/oferta" className="hover:underline">
+            Оферта
+          </Link>
+          <Link href="/privacy" className="hover:underline">
+            Конфиденциальность
+          </Link>
+          <Link href="/takedown" className="hover:underline">
+            Удаление фото
+          </Link>
+        </div>
+        <p>© {new Date().getFullYear()} loveitseasy</p>
       </footer>
     </div>
   );

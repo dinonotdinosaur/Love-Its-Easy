@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import { CONSENT_TEXT } from "@/lib/consent";
@@ -140,6 +141,18 @@ export function OrderForm({
       >
         {submitting ? "Отправляем…" : "Продолжить"}
       </button>
+
+      <p className="text-center text-xs text-zinc-400">
+        Продолжая, вы принимаете условия{" "}
+        <Link href="/oferta" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
+          публичной оферты
+        </Link>{" "}
+        и{" "}
+        <Link href="/privacy" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
+          политики конфиденциальности
+        </Link>
+        .
+      </p>
     </form>
   );
 }
