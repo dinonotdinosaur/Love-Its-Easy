@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getTariffFeatures, TARIFFS, type TariffId } from "@/lib/tariffs";
+import { getTariffFeatures, TARIFFS, TEMPLATE_SLUGS, isTemplateAllowedForTariff, type TariffId } from "@/lib/tariffs";
+
+import { OrderForm } from "./OrderForm";
 
 function isTariffId(value: string): value is TariffId {
   return value in TARIFFS;
@@ -16,6 +18,7 @@ export default async function OrderPage({ params }: PageProps<"/order/[tariff]">
 
   const tariff = TARIFFS[tariffParam];
   const features = getTariffFeatures(tariff.id);
+  const allowedTemplates = TEMPLATE_SLUGS.filter((slug) => isTemplateAllowedForTariff(tariff.id, slug));
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-16 sm:px-6">
@@ -38,10 +41,7 @@ export default async function OrderPage({ params }: PageProps<"/order/[tariff]">
         </ul>
       </div>
 
-      <p className="text-center text-zinc-500">
-        Форма заказа появится здесь совсем скоро — выбор шаблона, поля для текста
-        и загрузка фото.
-      </p>
+      <OrderForm tariff={tariff} allowedTemplates={allowedTemplates} />
     </div>
   );
 }

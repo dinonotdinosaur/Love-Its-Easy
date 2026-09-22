@@ -11,5 +11,40 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Локальная замена S3-хранилища RU-провайдера (Timeweb/Yandex) на время
+  # разработки — тот же S3-совместимый протокол, реальный провайдер
+  # подключается только сменой S3_* переменных в .env (AGENTS.md §2, §7).
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: loveitseasy
+      MINIO_ROOT_PASSWORD: loveitseasy123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Одноразовый контейнер: создаёт бакет loveitseasy при первом старте
+  # и завершается (mc входит в образ minio/minio).
+  minio-init:
+    image: minio/minio:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 loveitseasy loveitseasy123 &&
+      mc mb --ignore-existing local/loveitseasy
+      "
+
 volumes:
   postgres_data:
+  minio_data:
