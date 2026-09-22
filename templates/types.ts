@@ -1,0 +1,16 @@
+import type { ResolvedPageContent } from "@/lib/order-content";
+
+/**
+ * Общий контракт для всех компонентов шаблонов (AGENTS.md §5-6).
+ *
+ * Важно: сюда попадают уже РАЗРЕШЁННЫЕ URL фото (`photoUrl`), а не ключи
+ * S3 (`photoKey`) — функцию-резолвер нельзя передать из серверного
+ * компонента в клиентский (шаблоны — "use client") через границу
+ * Server/Client в App Router, только сериализуемые данные. Резолвинг
+ * ключей в URL делает вызывающая сторона (рендер `/q/[uuid]` в Фазе 9,
+ * или превью-страница) до рендера компонента шаблона —
+ * `lib/order-content.ts` → `resolvePageContentPhotos`.
+ */
+export interface TemplateProps {
+  page: ResolvedPageContent;
+}

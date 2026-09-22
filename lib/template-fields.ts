@@ -10,7 +10,7 @@ import type { TemplateSlug } from "@/lib/tariffs";
  * количества слотов, а не свободное добавление/удаление пользователем.
  */
 
-export type FieldType = "text" | "textarea" | "date" | "url";
+export type FieldType = "text" | "textarea" | "date" | "url" | "select";
 
 export interface SimpleField {
   key: string;
@@ -19,6 +19,8 @@ export interface SimpleField {
   required?: boolean;
   maxLength?: number;
   placeholder?: string;
+  /** Только для type: "select" — варианты значения поля. */
+  options?: { value: string; label: string }[];
 }
 
 export interface RepeatableGroup {
@@ -145,6 +147,16 @@ export const TEMPLATE_FIELD_SCHEMAS: Record<TemplateSlug, TemplateFieldSchema> =
           { key: "question", label: "Вопрос", type: "text", required: true, maxLength: 150 },
           { key: "optionA", label: "Вариант А", type: "text", required: true, maxLength: 80 },
           { key: "optionB", label: "Вариант Б", type: "text", required: true, maxLength: 80 },
+          {
+            key: "correctOption",
+            label: "Правильный вариант (для подсчёта очков)",
+            type: "select",
+            required: true,
+            options: [
+              { value: "A", label: "Вариант А" },
+              { value: "B", label: "Вариант Б" },
+            ],
+          },
         ],
       },
     ],

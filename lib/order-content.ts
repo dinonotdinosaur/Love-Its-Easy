@@ -127,3 +127,34 @@ export function contentHasPhotos(content: OrderContent): boolean {
     Object.values(page.groups).some((items) => items.some((item) => item.photoKey)),
   );
 }
+
+/**
+ * Превращает `photoKey` (S3) в `photoUrl` (строка) — только так контент
+ * может пересечь границу Server -> Client компонент в App Router (функцию
+ * резолвер передать нельзя, см. templates/types.ts). Вызывается на сервере
+ * ДО рендера компонента шаблона.
+ */
+export function resolvePageContentPhotos(
+  page: PageContent,
+  resolvePhotoUrl: (key: string) => string,
+): ResolvedPageContent {
+  const groups: Record<string, ResolvedGroupItemContent[]> = {};
+  for (const [groupKey, items] of Object.entries(page.groups)) {
+    groups[groupKey] = items.map((item) => ({
+      fields: item.fields,
+      ...(item.photoKey && { photoUrl: resolvePhotoUrl(item.photoKey) }),
+    }));
+  }
+  return { templateSlug: page.templateSlug, fields: page.fields, groups };
+}
+
+export interface ResolvedGroupItemContent {
+  fields: Record<string, string>;
+  photoUrl?: string;
+}
+
+export interface ResolvedPageContent {
+  templateSlug: string;
+  fields: Record<string, string>;
+  groups: Record<string, ResolvedGroupItemContent[]>;
+}
