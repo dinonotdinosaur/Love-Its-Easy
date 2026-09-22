@@ -6,6 +6,7 @@ import confetti from "canvas-confetti";
 
 import type { ResolvedGroupItemContent } from "@/lib/order-content";
 
+import { ClockTimePicker, type ClockTime } from "./ClockTimePicker";
 import type { TemplateProps } from "../types";
 
 const NO_BUTTON_SIZE = { width: 120, height: 56 };
@@ -30,8 +31,10 @@ function PostAnswerFlow({
 }) {
   const [chosenIndex, setChosenIndex] = useState<number | null>(dateOptions.length > 0 ? null : -1);
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [clockTime, setClockTime] = useState<ClockTime>({ hour: 19, minute: 0 });
   const [done, setDone] = useState(false);
+
+  const time = `${String(clockTime.hour).padStart(2, "0")}:${String(clockTime.minute).padStart(2, "0")}`;
 
   function handleConfirmSchedule(event: React.FormEvent) {
     event.preventDefault();
@@ -78,14 +81,8 @@ function PostAnswerFlow({
             onChange={(e) => setDate(e.target.value)}
             className="rounded-lg border border-black/10 bg-white px-3 py-2 text-center dark:border-white/15 dark:bg-white/5"
           />
-          <input
-            type="time"
-            required
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="rounded-lg border border-black/10 bg-white px-3 py-2 text-center dark:border-white/15 dark:bg-white/5"
-          />
         </div>
+        <ClockTimePicker value={clockTime} onChange={setClockTime} />
         <button
           type="submit"
           className="flex h-12 items-center justify-center rounded-full bg-rose-500 px-8 font-medium text-white transition-colors hover:bg-rose-600"
