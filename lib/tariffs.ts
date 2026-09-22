@@ -3,6 +3,8 @@
  * срок/PIN). Цифры нигде больше по коду не хардкодятся (AGENTS.md §6).
  */
 
+import { formatLinkDuration } from "@/lib/format";
+
 export const TEMPLATE_SLUGS = [
   "ty-samaya-krasivaya",
   "vyberi-svidanie",
@@ -12,6 +14,14 @@ export const TEMPLATE_SLUGS = [
 ] as const;
 
 export type TemplateSlug = (typeof TEMPLATE_SLUGS)[number];
+
+export const TEMPLATE_TITLES: Record<TemplateSlug, string> = {
+  "ty-samaya-krasivaya": "Ты самая красивая",
+  "vyberi-svidanie": "Выбери свидание",
+  "nasha-istoriya": "Наша история",
+  "priznanie-v-lyubvi": "Признание в любви",
+  "ty-protiv-menya": "Ты против меня",
+};
 
 // Шаблоны без фото — тариф "Лёгкий" их не отправляет на NSFW-модерацию
 // вообще (AGENTS.md §3), только через бесплатный текстовый модератор.
@@ -129,3 +139,45 @@ export const TARIFF_ID_TO_PRISMA_TARIFF = {
   maksimum: "MAKSIMUM",
   "dlya-dvoikh": "DLYA_DVOIKH",
 } as const satisfies Record<TariffId, string>;
+
+/**
+ * Список пунктов для карточки тарифа на витрине — выводится из конфигурации,
+ * чтобы цифры лимитов не расходились между лендингом и остальным кодом
+ * (AGENTS.md §6: единая конфигурация, не хардкодить по месту).
+ */
+export function getTariffFeatures(tariffId: TariffId): string[] {
+  const tariff = getTariff(tariffId);
+  const features: string[] = [];
+
+  features.push(
+    tariff.templates === "all"
+      ? `Все ${TEMPLATE_SLUGS.length} шаблонов`
+      : `${tariff.templates.length} шаблона без фото`,
+  );
+
+  if (tariff.maxPhotos === 0) {
+    features.push("Без фото");
+  } else if (tariff.pageCount > 1) {
+    features.push(`До ${tariff.maxPhotos} фото (по ${maxPhotosPerPage(tariffId)} на страницу)`);
+  } else {
+    features.push(`До ${tariff.maxPhotos} фото`);
+  }
+
+  if (tariff.linkDurationDays !== null) {
+    features.push(`Ссылка активна ${formatLinkDuration(tariff.linkDurationDays)}`);
+  }
+
+  if (tariff.pageCount > 1) {
+    features.push(`${tariff.pageCount} страницы — взаимный обмен сюрпризами`);
+  }
+
+  if (tariff.pinProtected) {
+    features.push("Защита PIN-кодом");
+  }
+
+  if (tariff.subdomain) {
+    features.push("Свой адрес: slug.loveitseasy.ru");
+  }
+
+  return features;
+}
