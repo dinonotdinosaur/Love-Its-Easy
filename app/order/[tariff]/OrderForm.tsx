@@ -23,6 +23,7 @@ export function OrderForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [failures, setFailures] = useState<string[]>([]);
+  const [failedOrderId, setFailedOrderId] = useState<string | null>(null);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
 
   const photosAllowed = tariff.maxPhotos > 0;
@@ -35,6 +36,7 @@ export function OrderForm({
     event.preventDefault();
     setError(null);
     setFailures([]);
+    setFailedOrderId(null);
     setSubmitting(true);
 
     try {
@@ -48,6 +50,7 @@ export function OrderForm({
 
       if (res.status === 422 && data.failures) {
         setFailures(data.failures);
+        setFailedOrderId(data.orderId ?? null);
         return;
       }
       if (!res.ok || !data.orderId) {
@@ -124,6 +127,9 @@ export function OrderForm({
             ))}
           </ul>
           <p className="mt-2">Замените отмеченные фото или текст и отправьте ещё раз.</p>
+          {failedOrderId && (
+            <p className="mt-2 text-xs text-red-500">Номер заказа (для обращения в поддержку): {failedOrderId}</p>
+          )}
         </div>
       )}
 
