@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
@@ -13,10 +13,14 @@ const DEFAULT_FINAL_MESSAGE = "И это ещё не все причины, по
  * по тапу/клику. После того как открыты все карточки — финальное сообщение
  * (текст задаёт создатель квеста, поле `finalMessage`).
  */
-export default function TySamayaKrasivaya({ page }: TemplateProps) {
+export default function TySamayaKrasivaya({ page, onComplete }: TemplateProps) {
   const cards = page.groups.cards ?? [];
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
   const allRevealed = cards.length > 0 && revealed.size === cards.length;
+
+  useEffect(() => {
+    if (allRevealed) onComplete?.();
+  }, [allRevealed, onComplete]);
 
   function toggle(index: number) {
     setRevealed((prev) => {

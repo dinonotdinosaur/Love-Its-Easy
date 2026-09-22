@@ -13,4 +13,10 @@ import type { ResolvedPageContent } from "@/lib/order-content";
  */
 export interface TemplateProps {
   page: ResolvedPageContent;
+  /**
+   * Вызывается один раз, когда шаблон достиг своего "финала" (Фаза 10 —
+   * кнопка "Поделиться с подругой" на `/q/[uuid]` появляется только после
+   * этого). Необязателен — превью-страница (Фаза 8) его не передаёт.
+   */
+  onComplete?: () => void;
 }

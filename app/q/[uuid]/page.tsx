@@ -5,9 +5,9 @@ import { verifyPinToken, pinCookieName } from "@/lib/access/pin-session";
 import { prisma } from "@/lib/db/client";
 import { collectPhotoKeys, isOrderContent, resolvePageContentPhotos } from "@/lib/order-content";
 import { getSignedPhotoUrl } from "@/lib/storage/s3";
-import { TEMPLATE_COMPONENTS } from "@/templates";
 
 import { PinForm } from "./PinForm";
+import { QuestView } from "./QuestView";
 
 // Вынесено из компонента: React-компилятор помечает Date.now() в теле
 // компонента как "нечистый вызов", хотя для серверного асинхронного
@@ -51,27 +51,9 @@ export default async function QuestPage({ params }: PageProps<"/q/[uuid]">) {
   const signedUrls = await Promise.all(photoKeys.map((key) => getSignedPhotoUrl(key)));
   const urlByKey = new Map(photoKeys.map((key, i) => [key, signedUrls[i]]));
 
-  const multiPage = content.pages.length > 1;
-
-  return (
-    <div className="flex flex-col gap-12 py-8">
-      {content.pages.map((page, index) => {
-        const Component = TEMPLATE_COMPONENTS[page.templateSlug as keyof typeof TEMPLATE_COMPONENTS];
-        if (!Component) return null;
-
-        const resolved = resolvePageContentPhotos(page, (key) => urlByKey.get(key) ?? "");
-
-        return (
-          <section key={index} className="flex flex-col gap-4">
-            {multiPage && (
-              <h2 className="text-center text-sm font-medium uppercase tracking-widest text-zinc-400">
-                Страница {index + 1}
-              </h2>
-            )}
-            <Component page={resolved} />
-          </section>
-        );
-      })}
-    </div>
+  const resolvedPages = content.pages.map((page) =>
+    resolvePageContentPhotos(page, (key) => urlByKey.get(key) ?? ""),
   );
+
+  return <QuestView pages={resolvedPages} uuid={order.id} multiPage={content.pages.length > 1} />;
 }

@@ -25,9 +25,11 @@ const DEFAULT_FINAL_MESSAGE = "Жду тебя! 💕";
 function PostAnswerFlow({
   dateOptions,
   finalMessage,
+  onComplete,
 }: {
   dateOptions: ResolvedGroupItemContent[];
   finalMessage: string;
+  onComplete?: () => void;
 }) {
   const [chosenIndex, setChosenIndex] = useState<number | null>(dateOptions.length > 0 ? null : -1);
   const [date, setDate] = useState("");
@@ -40,6 +42,7 @@ function PostAnswerFlow({
     event.preventDefault();
     confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
     setDone(true);
+    onComplete?.();
   }
 
   if (done) {
@@ -139,7 +142,7 @@ function PostAnswerFlow({
  * реагировать на новые целевые координаты — воспроизведено и подтверждено
  * вручную (кнопка "залипала" на месте, хотя React-состояние обновлялось).
  */
-export default function VyberiSvidanie({ page }: TemplateProps) {
+export default function VyberiSvidanie({ page, onComplete }: TemplateProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
@@ -232,7 +235,9 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
   }
 
   if (answered) {
-    return <PostAnswerFlow dateOptions={dateOptions} finalMessage={finalMessage} />;
+    return (
+      <PostAnswerFlow dateOptions={dateOptions} finalMessage={finalMessage} onComplete={onComplete} />
+    );
   }
 
   const taunt = TAUNTS[Math.min(Math.floor(dodges / 3), TAUNTS.length - 1)];

@@ -21,7 +21,7 @@ const DEFAULT_ENDING_QUESTION = "Ты будешь со мной?";
  * квеста, есть дефолт) с кнопкой "Да" и праздничным ответом — признание
  * без ответной реакции обрывалось на моргающем курсоре.
  */
-export default function PriznanieVLyubvi({ page }: TemplateProps) {
+export default function PriznanieVLyubvi({ page, onComplete }: TemplateProps) {
   const canAnimate3d = useCanAnimate3d();
   const lines = (page.groups.lines ?? []).map((item) => item.fields.text).filter(Boolean);
   const endingQuestion = page.fields.endingQuestion || DEFAULT_ENDING_QUESTION;
@@ -32,6 +32,7 @@ export default function PriznanieVLyubvi({ page }: TemplateProps) {
   function handleYes() {
     confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
     setAnswered(true);
+    onComplete?.();
   }
 
   return (

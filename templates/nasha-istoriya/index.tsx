@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
@@ -14,11 +14,17 @@ import { YoutubeEmbed } from "./YoutubeEmbed";
  * Фото открываются лайтбоксом — общий `layoutId` с превью даёт плавный
  * переход на передний план вместо резкой подмены.
  */
-export default function NashaIstoriya({ page }: TemplateProps) {
+export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
   const startDate = page.fields.startDate;
   const youtubeUrl = page.fields.youtubeUrl;
   const youtubeId = youtubeUrl ? extractYoutubeId(youtubeUrl) : null;
   const [openPhoto, setOpenPhoto] = useState<string | null>(null);
+
+  // Нет отдельного интерактивного финала — страница пролистывается сразу целиком.
+  useEffect(() => {
+    onComplete?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- вызвать один раз при монтировании
+  }, []);
 
   const milestones = [...(page.groups.milestones ?? [])].sort((a, b) =>
     (a.fields.date ?? "").localeCompare(b.fields.date ?? ""),

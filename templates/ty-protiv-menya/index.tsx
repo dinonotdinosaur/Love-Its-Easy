@@ -9,7 +9,7 @@ import type { TemplateProps } from "../types";
 const FEEDBACK_DELAY_MS = 700;
 
 /** «Ты против меня» (Квиз, love_its_easy.md §6): 5 вопросов, подсчёт очков, конфетти при победе. */
-export default function TyProtivMenya({ page }: TemplateProps) {
+export default function TyProtivMenya({ page, onComplete }: TemplateProps) {
   const title = page.fields.title || "Ты против меня";
   const questions = page.groups.questions ?? [];
 
@@ -21,10 +21,11 @@ export default function TyProtivMenya({ page }: TemplateProps) {
   const won = finished && questions.length > 0 && score >= Math.ceil(questions.length / 2);
 
   useEffect(() => {
+    if (finished) onComplete?.();
     if (won) {
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
     }
-  }, [won]);
+  }, [finished, won, onComplete]);
 
   function answer(choice: "A" | "B") {
     if (selected) return;
