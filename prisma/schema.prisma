@@ -50,6 +50,11 @@ model Order {
   // Поддомен вида slug.loveitseasy.ru — только для тарифа "Максимум".
   subdomainSlug String? @unique
 
+  // Причины отказа автомодерации (если MODERATION_FAILED) — нужна и для
+  // понятной ошибки пользователю, и как материал для калибровки порогов
+  // NudeNet на реальных данных (открытый вопрос AGENTS.md §8.2).
+  moderationNote String?
+
   amountKopecks   Int
   paymentProvider String?
   paymentId       String?

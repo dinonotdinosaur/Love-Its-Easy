@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { CONSENT_TEXT } from "@/lib/consent";
 import { prisma } from "@/lib/db/client";
+import { moderateOrderContent } from "@/lib/moderation";
 import {
   contentHasPhotos,
   sanitizeOrderContent,
@@ -73,5 +74,29 @@ export async function POST(request: Request) {
     },
   });
 
-  return NextResponse.json({ orderId: order.id });
+  // Модерация — до оплаты (AGENTS.md §4). Заказ уже создан со статусом
+  // MODERATION_PENDING, чтобы неудачные попытки тоже оставались в БД —
+  // это и есть материал для калибровки порогов NudeNet (AGENTS.md §8.2).
+  const moderation = await moderateOrderContent(content);
+
+  const updated = await prisma.order.update({
+    where: { id: order.id },
+    data: {
+      status: moderation.passed ? "MODERATION_PASSED" : "MODERATION_FAILED",
+      moderationNote: moderation.passed ? null : moderation.failures.join("; "),
+    },
+  });
+
+  if (!moderation.passed) {
+    return NextResponse.json(
+      {
+        orderId: updated.id,
+        error: "Автоматическая модерация не пройдена",
+        failures: moderation.failures,
+      },
+      { status: 422 },
+    );
+  }
+
+  return NextResponse.json({ orderId: updated.id });
 }

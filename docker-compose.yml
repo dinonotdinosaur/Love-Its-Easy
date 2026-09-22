@@ -45,6 +45,20 @@ services:
       mc mb --ignore-existing local/loveitseasy
       "
 
+  # Self-hosted NSFW-модерация (AGENTS.md §2, §7 — не заменять на платный
+  # внешний SaaS без обсуждения). На проде — тот же образ на VPS.
+  nsfw:
+    build: ./services/nsfw
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
 volumes:
   postgres_data:
   minio_data:

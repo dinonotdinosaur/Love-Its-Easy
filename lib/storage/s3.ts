@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 
@@ -48,4 +48,16 @@ export async function uploadUserPhoto(source: Buffer): Promise<{ key: string }> 
   );
 
   return { key };
+}
+
+/** Скачивает фото из S3 обратно в память — нужно для передачи в NudeNet на модерацию. */
+export async function getUserPhoto(key: string): Promise<Buffer> {
+  const result = await client.send(
+    new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }),
+  );
+  const bytes = await result.Body?.transformToByteArray();
+  if (!bytes) {
+    throw new InvalidPhotoError("Фото не найдено в хранилище");
+  }
+  return Buffer.from(bytes);
 }

@@ -22,7 +22,8 @@ export function OrderForm({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [failures, setFailures] = useState<string[]>([]);
+  const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
 
   const photosAllowed = tariff.maxPhotos > 0;
 
@@ -33,6 +34,7 @@ export function OrderForm({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setFailures([]);
     setSubmitting(true);
 
     try {
@@ -42,11 +44,16 @@ export function OrderForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tariffId: tariff.id, email, content, consentGiven }),
       });
-      const data = (await res.json()) as { orderId?: string; error?: string };
+      const data = (await res.json()) as { orderId?: string; error?: string; failures?: string[] };
+
+      if (res.status === 422 && data.failures) {
+        setFailures(data.failures);
+        return;
+      }
       if (!res.ok || !data.orderId) {
         throw new Error(data.error ?? "Не удалось отправить заказ");
       }
-      setOrderId(data.orderId);
+      setSuccessOrderId(data.orderId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось отправить заказ");
     } finally {
@@ -54,13 +61,12 @@ export function OrderForm({
     }
   }
 
-  if (orderId) {
+  if (successOrderId) {
     return (
       <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-6 text-center dark:border-emerald-700 dark:bg-emerald-950/30">
-        <p className="font-semibold">Черновик заказа сохранён</p>
+        <p className="font-semibold">Заказ прошёл модерацию</p>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Номер заказа: {orderId}. Дальше — автоматическая модерация и оплата, это появится
-          совсем скоро.
+          Номер заказа: {successOrderId}. Дальше — оплата, это появится совсем скоро.
         </p>
       </div>
     );
@@ -108,6 +114,18 @@ export function OrderForm({
       )}
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+
+      {failures.length > 0 && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
+          <p className="font-medium">Автоматическая модерация не пройдена:</p>
+          <ul className="mt-1 list-disc pl-5">
+            {failures.map((failure) => (
+              <li key={failure}>{failure}</li>
+            ))}
+          </ul>
+          <p className="mt-2">Замените отмеченные фото или текст и отправьте ещё раз.</p>
+        </div>
+      )}
 
       <button
         type="submit"
