@@ -43,3 +43,6 @@ next-env.d.ts
 
 # prisma (пересобирается `prisma generate`, не коммитим)
 /lib/generated/prisma
+
+# локальный лог dev-сервера (запускается вручную при разработке)
+/dev-server.log
