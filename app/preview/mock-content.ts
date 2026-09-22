@@ -31,7 +31,7 @@ export const PREVIEW_CONTENT: Record<TemplateSlug, ResolvedPageContent> = {
 
   "vyberi-svidanie": {
     templateSlug: "vyberi-svidanie",
-    fields: { question: "Пойдёшь со мной на свидание?" },
+    fields: { question: "Пойдёшь со мной на свидание?", finalMessage: "Жду тебя! 💕" },
     groups: {
       dateOptions: [
         { fields: { title: "Ужин при свечах", description: "Столик в нашем любимом ресторане" } },

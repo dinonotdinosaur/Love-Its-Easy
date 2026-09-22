@@ -85,6 +85,13 @@ export const TEMPLATE_FIELD_SCHEMAS: Record<TemplateSlug, TemplateFieldSchema> =
         maxLength: 120,
         placeholder: "Пойдёшь со мной на свидание?",
       },
+      {
+        key: "finalMessage",
+        label: "Финальное сообщение (после выбора даты и времени)",
+        type: "text",
+        maxLength: 100,
+        placeholder: "Жду тебя! 💕",
+      },
     ],
     groups: [
       {

@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import confetti from "canvas-confetti";
+
+import type { ResolvedGroupItemContent } from "@/lib/order-content";
 
 import type { TemplateProps } from "../types";
 
@@ -15,13 +18,120 @@ const MIN_DODGE_INTERVAL_MS = 300;
 const TAUNTS = ["Не поймать! 😏", "Ты серьёзно? 😄", "Всё ещё пытаешься? 😅"];
 /** Насколько вырастает кнопка "Да" к концу времени "мучений" (1 = без роста). */
 const YES_MAX_SCALE = 1.4;
+const DEFAULT_FINAL_MESSAGE = "Жду тебя! 💕";
+
+/** После "Да": выбор варианта → удобные дата/время → финальное сообщение. */
+function PostAnswerFlow({
+  dateOptions,
+  finalMessage,
+}: {
+  dateOptions: ResolvedGroupItemContent[];
+  finalMessage: string;
+}) {
+  const [chosenIndex, setChosenIndex] = useState<number | null>(dateOptions.length > 0 ? null : -1);
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [done, setDone] = useState(false);
+
+  function handleConfirmSchedule(event: React.FormEvent) {
+    event.preventDefault();
+    confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+    setDone(true);
+  }
+
+  if (done) {
+    const chosen = chosenIndex !== null && chosenIndex >= 0 ? dateOptions[chosenIndex] : null;
+    return (
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="mx-auto flex w-full max-w-xl flex-col items-center gap-3 px-4 py-16 text-center"
+      >
+        <span className="text-5xl" aria-hidden>
+          🎉
+        </span>
+        <h1 className="text-2xl font-bold sm:text-3xl">{finalMessage}</h1>
+        {(chosen ?? date) && (
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {chosen?.fields.title}
+            {chosen && date && " — "}
+            {date && new Date(`${date}T00:00:00`).toLocaleDateString("ru-RU")}
+            {time && `, ${time}`}
+          </p>
+        )}
+      </motion.div>
+    );
+  }
+
+  if (chosenIndex !== null) {
+    return (
+      <form
+        onSubmit={handleConfirmSchedule}
+        className="mx-auto flex w-full max-w-xl flex-col items-center gap-4 px-4 py-16 text-center"
+      >
+        <h1 className="text-2xl font-bold sm:text-3xl">Когда удобно?</h1>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          <input
+            type="date"
+            required
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="rounded-lg border border-black/10 bg-white px-3 py-2 text-center dark:border-white/15 dark:bg-white/5"
+          />
+          <input
+            type="time"
+            required
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="rounded-lg border border-black/10 bg-white px-3 py-2 text-center dark:border-white/15 dark:bg-white/5"
+          />
+        </div>
+        <button
+          type="submit"
+          className="flex h-12 items-center justify-center rounded-full bg-rose-500 px-8 font-medium text-white transition-colors hover:bg-rose-600"
+        >
+          Готово
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-6 px-4 py-16 text-center">
+      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+        <h1 className="text-2xl font-bold sm:text-3xl">Ура! Выбирай, куда идём 🎉</h1>
+      </motion.div>
+      <div className="flex w-full flex-col gap-3">
+        {dateOptions.map((option, index) => (
+          <motion.button
+            key={index}
+            type="button"
+            onClick={() => setChosenIndex(index)}
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: index * 0.1 }}
+            className="rounded-2xl border border-rose-200 bg-white p-4 text-left transition-colors hover:border-rose-400 dark:border-rose-900 dark:bg-zinc-900"
+          >
+            <p className="font-semibold">{option.fields.title}</p>
+            {option.fields.description && (
+              <p className="mt-1 text-sm text-zinc-500">{option.fields.description}</p>
+            )}
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * «Выбери свидание» (love_its_easy.md §6): опрос с "убегающей кнопкой"
  * ответа "Нет". Кнопка чувствует приближение курсора/пальца (не только
  * прямое попадание) и убегает от него ~10 секунд подряд, не залезая на
  * заголовок и кнопку "Да" (запретная зона — вся верхняя полоса контейнера),
- * а затем перестаёт реагировать и уступает место финальной карте.
+ * а затем перестаёт реагировать и уступает место выбору варианта свидания.
+ *
+ * После "Да": клик по варианту (реально выбирается, не просто список) →
+ * дата и время → финальное сообщение (задаёт создатель квеста, есть дефолт).
  *
  * Кнопка "Да" плавно растёт, пока идут "мучения" (до `YES_MAX_SCALE` к концу
  * `TORMENT_DURATION_MS`) — лёгкая подсказка в сторону "правильного" ответа.
@@ -54,6 +164,7 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
   }, []);
 
   const question = page.fields.question || "Пойдёшь со мной на свидание?";
+  const finalMessage = page.fields.finalMessage || DEFAULT_FINAL_MESSAGE;
   const dateOptions = page.groups.dateOptions ?? [];
 
   const pickSafeOffset = useCallback((container: HTMLDivElement, forbiddenBottomY: number) => {
@@ -124,29 +235,7 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
   }
 
   if (answered) {
-    return (
-      <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-6 px-4 py-16 text-center">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <h1 className="text-2xl font-bold sm:text-3xl">Ура! Выбирай, куда идём 🎉</h1>
-        </motion.div>
-        <div className="flex w-full flex-col gap-3">
-          {dateOptions.map((option, index) => (
-            <motion.div
-              key={index}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: index * 0.1 }}
-              className="rounded-2xl border border-rose-200 bg-white p-4 text-left dark:border-rose-900 dark:bg-zinc-900"
-            >
-              <p className="font-semibold">{option.fields.title}</p>
-              {option.fields.description && (
-                <p className="mt-1 text-sm text-zinc-500">{option.fields.description}</p>
-              )}
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    );
+    return <PostAnswerFlow dateOptions={dateOptions} finalMessage={finalMessage} />;
   }
 
   const taunt = TAUNTS[Math.min(Math.floor(dodges / 3), TAUNTS.length - 1)];
