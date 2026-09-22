@@ -140,6 +140,11 @@ export const TARIFF_ID_TO_PRISMA_TARIFF = {
   "dlya-dvoikh": "DLYA_DVOIKH",
 } as const satisfies Record<TariffId, string>;
 
+/** Обратный маппинг — из значения Prisma-энума обратно в TariffId. */
+export const PRISMA_TARIFF_TO_TARIFF_ID: Record<string, TariffId> = Object.fromEntries(
+  Object.entries(TARIFF_ID_TO_PRISMA_TARIFF).map(([id, prismaValue]) => [prismaValue, id]),
+) as Record<string, TariffId>;
+
 /**
  * Список пунктов для карточки тарифа на витрине — выводится из конфигурации,
  * чтобы цифры лимитов не расходились между лендингом и остальным кодом
