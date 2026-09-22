@@ -11,11 +11,11 @@
 - [ ] Зарегистрировать самозанятость в "Мой налог" (если ещё не сделано).
 - [ ] Завести VPS + Managed PostgreSQL + S3-хранилище у RU-провайдера.
 
-## Фаза 1 — Инициализация репозитория
-- [ ] `next init` (App Router, TypeScript strict), `git init`.
-- [ ] ESLint + Prettier, базовый `.gitignore`.
-- [ ] Структура папок по разделу 5 `AGENTS.md`.
-- [ ] `.env.example` со всеми переменными (DB, S3, платежи, email, NudeNet URL).
+## Фаза 1 — Инициализация репозитория ✅
+- [x] `next init` (Next.js 16, App Router, TypeScript strict), `git init`.
+- [x] ESLint + Prettier, базовый `.gitignore`.
+- [x] Структура папок по разделу 5 `AGENTS.md`.
+- [x] `.env.example` со всеми переменными (DB, S3, платежи, email, NudeNet URL).
 
 ## Фаза 2 — Инфраструктура
 - [ ] Поднять self-hosted NudeNet (Docker) на VPS, health-check эндпоинт.
