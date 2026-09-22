@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
@@ -13,6 +13,8 @@ const DANGER_RADIUS_PX = 90;
 const MIN_DODGE_INTERVAL_MS = 300;
 
 const TAUNTS = ["Не поймать! 😏", "Ты серьёзно? 😄", "Всё ещё пытаешься? 😅"];
+/** Насколько вырастает кнопка "Да" к концу времени "мучений" (1 = без роста). */
+const YES_MAX_SCALE = 1.4;
 
 /**
  * «Выбери свидание» (love_its_easy.md §6): опрос с "убегающей кнопкой"
@@ -20,6 +22,9 @@ const TAUNTS = ["Не поймать! 😏", "Ты серьёзно? 😄", "В�
  * прямое попадание) и убегает от него ~10 секунд подряд, не залезая на
  * заголовок и кнопку "Да" (запретная зона — вся верхняя полоса контейнера),
  * а затем перестаёт реагировать и уступает место финальной карте.
+ *
+ * Кнопка "Да" плавно растёт, пока идут "мучения" (до `YES_MAX_SCALE` к концу
+ * `TORMENT_DURATION_MS`) — лёгкая подсказка в сторону "правильного" ответа.
  *
  * Позиция анимируется через `x`/`y` (transform), а не `left`/`top`: если
  * смешать в одном `animate`-объекте неанимируемое свойство `position` с
@@ -33,11 +38,20 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const startedAtRef = useRef<number | null>(null);
   const lastDodgeAtRef = useRef(0);
+  const growIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [noOffset, setNoOffset] = useState<{ x: number; y: number } | null>(null);
   const [dodges, setDodges] = useState(0);
   const [teased, setTeased] = useState(false);
   const [answered, setAnswered] = useState(false);
+  const [yesScale, setYesScale] = useState(1);
+
+  // На случай размонтирования компонента посреди "мучений".
+  useEffect(() => {
+    return () => {
+      if (growIntervalRef.current) clearInterval(growIntervalRef.current);
+    };
+  }, []);
 
   const question = page.fields.question || "Пойдёшь со мной на свидание?";
   const dateOptions = page.groups.dateOptions ?? [];
@@ -64,6 +78,16 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
 
     if (startedAtRef.current === null) {
       startedAtRef.current = now;
+      const startedAt = now;
+      growIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        const ratio = Math.min(elapsed / TORMENT_DURATION_MS, 1);
+        setYesScale(1 + ratio * (YES_MAX_SCALE - 1));
+        if (ratio >= 1 && growIntervalRef.current) {
+          clearInterval(growIntervalRef.current);
+          growIntervalRef.current = null;
+        }
+      }, 200);
     }
     if (now - startedAtRef.current >= TORMENT_DURATION_MS) {
       setTeased(true);
@@ -135,14 +159,16 @@ export default function VyberiSvidanie({ page }: TemplateProps) {
     >
       <h1 className="text-2xl font-bold sm:text-3xl">{question}</h1>
 
-      <button
+      <motion.button
         ref={yesButtonRef}
         type="button"
         onClick={() => setAnswered(true)}
+        animate={{ scale: yesScale }}
+        transition={{ type: "spring", stiffness: 200, damping: 15 }}
         className="flex h-14 items-center justify-center rounded-full bg-rose-500 px-8 text-lg font-medium text-white transition-colors hover:bg-rose-600"
       >
         Да
-      </button>
+      </motion.button>
 
       <motion.button
         ref={noButtonRef}
