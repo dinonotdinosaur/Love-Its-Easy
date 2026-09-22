@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma (пересобирается `prisma generate`, не коммитим)
+/lib/generated/prisma

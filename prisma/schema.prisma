@@ -1,0 +1,82 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Ключи соответствуют тарифам из AGENTS.md §3.
+enum Tariff {
+  LEGKIY
+  KVEST
+  MAKSIMUM
+  DLYA_DVOIKH
+}
+
+// Жизненный цикл заказа: контент собирается и проходит модерацию
+// ДО оплаты (AGENTS.md §4) — оплата возможна только из MODERATION_PASSED.
+enum OrderStatus {
+  DRAFT
+  MODERATION_PENDING
+  MODERATION_FAILED
+  MODERATION_PASSED
+  PAID
+  EXPIRED
+}
+
+model Order {
+  id     String @id @default(uuid())
+  tariff Tariff
+  status OrderStatus @default(DRAFT)
+
+  // Слаг выбранного шаблона (валидируется по lib/tariffs.ts на уровне приложения).
+  templateSlug String
+
+  // Тексты полей и ссылки на фото в S3 — формат зависит от шаблона,
+  // поэтому единая JSON-структура вместо жёсткой схемы на каждый шаблон.
+  content Json
+
+  email String
+
+  // PIN обязателен для тарифа "Максимум" (AGENTS.md §4) — хранится только
+  // как хэш, сверка на сервере при заходе на /q/[uuid].
+  pinCodeHash String?
+
+  // Поддомен вида slug.loveitseasy.ru — только для тарифа "Максимум".
+  subdomainSlug String? @unique
+
+  amountKopecks   Int
+  paymentProvider String?
+  paymentId       String?
+
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  consentLogs ConsentLog[]
+
+  @@index([status])
+}
+
+// Согласие на использование фото третьих лиц (AGENTS.md §4) — логируется
+// с таймстампом и точным текстом, под которым пользователь поставил галочку,
+// чтобы формулировка чекбокса могла меняться со временем без потери аудита.
+model ConsentLog {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  consentText String
+  ipAddress   String?
+  userAgent   String?
+
+  consentedAt DateTime @default(now())
+
+  @@index([orderId])
+}
