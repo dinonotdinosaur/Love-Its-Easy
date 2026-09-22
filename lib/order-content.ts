@@ -18,6 +18,15 @@ export interface OrderContent {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** Проверка формы `Order.content` (JSON-поле из БД) перед рендером — данные пишет только наш код, но тип из Prisma — `unknown`. */
+export function isOrderContent(value: unknown): value is OrderContent {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Array.isArray((value as { pages?: unknown }).pages)
+  );
+}
+
 function isGroupItemEmpty(item: GroupItemContent): boolean {
   return !item.photoKey && Object.values(item.fields).every((value) => !value?.trim());
 }
@@ -126,6 +135,19 @@ export function contentHasPhotos(content: OrderContent): boolean {
   return content.pages.some((page) =>
     Object.values(page.groups).some((items) => items.some((item) => item.photoKey)),
   );
+}
+
+/** Все уникальные ключи фото во всём заказе — чтобы одним batch-запросом получить подписанные URL. */
+export function collectPhotoKeys(content: OrderContent): string[] {
+  const keys = new Set<string>();
+  for (const page of content.pages) {
+    for (const items of Object.values(page.groups)) {
+      for (const item of items) {
+        if (item.photoKey) keys.add(item.photoKey);
+      }
+    }
+  }
+  return [...keys];
 }
 
 /**

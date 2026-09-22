@@ -1,4 +1,5 @@
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 
@@ -60,4 +61,14 @@ export async function getUserPhoto(key: string): Promise<Buffer> {
     throw new InvalidPhotoError("Фото не найдено в хранилище");
   }
   return Buffer.from(bytes);
+}
+
+/**
+ * Временный подписанный URL на приватный объект в S3 — для показа фото
+ * на странице квеста (`/q/[uuid]`, Фаза 9). Бакет не публичный, поэтому
+ * прямая ссылка на `photoKey` не откроется без подписи.
+ */
+export async function getSignedPhotoUrl(key: string, expiresInSeconds = 3600): Promise<string> {
+  const command = new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key });
+  return getSignedUrl(client, command, { expiresIn: expiresInSeconds });
 }
