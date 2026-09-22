@@ -3,7 +3,7 @@ import { TEMPLATE_FIELD_SCHEMAS } from "@/lib/template-fields";
 import type { OrderContent } from "@/lib/order-content";
 
 import { moderatePhoto } from "./nudenet";
-import { moderateText } from "./openai-text";
+import { moderateTexts } from "./openai-text";
 
 export interface ModerationResult {
   passed: boolean;
@@ -19,38 +19,9 @@ export interface ModerationResult {
  */
 export async function moderateOrderContent(content: OrderContent): Promise<ModerationResult> {
   const failures: string[] = [];
-  const tasks: Promise<void>[] = [];
 
-  function checkText(label: string, value: string | undefined) {
-    if (!value?.trim()) return;
-    tasks.push(
-      moderateText(value)
-        .then((result) => {
-          if (result.flagged) failures.push(`Текст "${label}" не прошёл проверку`);
-        })
-        .catch((error: unknown) => {
-          failures.push(
-            `Не удалось проверить текст "${label}": ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
-          );
-        }),
-    );
-  }
-
-  function checkPhoto(label: string, key: string | undefined) {
-    if (!key) return;
-    tasks.push(
-      getUserPhoto(key)
-        .then((buffer) => moderatePhoto(buffer))
-        .then((result) => {
-          if (!result.safe) failures.push(`Фото "${label}" не прошло проверку`);
-        })
-        .catch((error: unknown) => {
-          failures.push(
-            `Не удалось проверить фото "${label}": ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
-          );
-        }),
-    );
-  }
+  const textItems: { label: string; value: string }[] = [];
+  const photoItems: { label: string; key: string }[] = [];
 
   for (const [pageIndex, page] of content.pages.entries()) {
     const pageLabel = content.pages.length > 1 ? `Страница ${pageIndex + 1}` : null;
@@ -58,10 +29,10 @@ export async function moderateOrderContent(content: OrderContent): Promise<Moder
     if (!schema) continue;
 
     for (const field of schema.fields) {
-      checkText(
-        [pageLabel, field.label].filter(Boolean).join(" — "),
-        page.fields[field.key],
-      );
+      const value = page.fields[field.key];
+      if (value?.trim()) {
+        textItems.push({ label: [pageLabel, field.label].filter(Boolean).join(" — "), value });
+      }
     }
 
     for (const group of schema.groups) {
@@ -69,14 +40,44 @@ export async function moderateOrderContent(content: OrderContent): Promise<Moder
       items.forEach((item, index) => {
         const itemLabel = [pageLabel, `${group.label} №${index + 1}`].filter(Boolean).join(" — ");
         for (const field of group.fields) {
-          checkText(`${itemLabel} — ${field.label}`, item.fields[field.key]);
+          const value = item.fields[field.key];
+          if (value?.trim()) {
+            textItems.push({ label: `${itemLabel} — ${field.label}`, value });
+          }
         }
-        checkPhoto(itemLabel, item.photoKey);
+        if (item.photoKey) {
+          photoItems.push({ label: itemLabel, key: item.photoKey });
+        }
       });
     }
   }
 
-  await Promise.all(tasks);
+  // Тексты — одним батч-запросом (см. lib/moderation/openai-text.ts).
+  try {
+    const flags = await moderateTexts(textItems.map((t) => t.value));
+    flags.forEach((flagged, i) => {
+      if (flagged) failures.push(`Текст "${textItems[i].label}" не прошёл проверку`);
+    });
+  } catch (error) {
+    failures.push(
+      `Не удалось проверить тексты: ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
+    );
+  }
+
+  // Фото — параллельно, сервис self-hosted, внешних лимитов нет.
+  await Promise.all(
+    photoItems.map(async ({ label, key }) => {
+      try {
+        const buffer = await getUserPhoto(key);
+        const result = await moderatePhoto(buffer);
+        if (!result.safe) failures.push(`Фото "${label}" не прошло проверку`);
+      } catch (error) {
+        failures.push(
+          `Не удалось проверить фото "${label}": ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
+        );
+      }
+    }),
+  );
 
   return { passed: failures.length === 0, failures };
 }
