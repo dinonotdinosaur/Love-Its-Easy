@@ -49,8 +49,11 @@ export async function fulfillPaidOrder(
     pinCodeHash = await hashPin(pin);
   }
 
-  await prisma.order.update({
-    where: { id: order.id },
+  // Переход в PAID — условный UPDATE, а не read-then-write: два одновременных
+  // вебхука оба видят MODERATION_PASSED выше, и без условия второй перезаписал
+  // бы pinCodeHash своим PIN, а пользователю ушёл бы PIN первого (неверный).
+  const updated = await prisma.order.updateMany({
+    where: { id: order.id, status: "MODERATION_PASSED" },
     data: {
       status: "PAID",
       paymentProvider: payment.provider,
@@ -59,6 +62,15 @@ export async function fulfillPaidOrder(
       ...(pinCodeHash && { pinCodeHash }),
     },
   });
+
+  if (updated.count === 0) {
+    // Параллельный вызов успел первым — его PIN и отправляется пользователю.
+    const current = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    if (current.status === "PAID") {
+      return { orderId: current.id, expiresAt: current.expiresAt as Date, pin: null };
+    }
+    throw new OrderNotPayableError(`Заказ ${orderId} нельзя оплатить из статуса ${current.status}`);
+  }
 
   return { orderId: order.id, expiresAt, pin };
 }
