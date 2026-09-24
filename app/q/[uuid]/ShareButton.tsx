@@ -7,12 +7,14 @@ import { motion } from "framer-motion";
  * "Поделиться с подругой" (love_its_easy.md §5) — ведёт не на оригинал
  * (там реальные фото/тексты), а на публичную Shareable Demo (`/demo/[uuid]`,
  * AGENTS.md §7): демо не должно содержать реальные данные пользователя.
+ * Поэтому в ссылке `demoId`, а не id заказа — иначе из демо-ссылки
+ * восстанавливается адрес настоящего квеста `/q/[uuid]`.
  */
-export function ShareButton({ uuid }: { uuid: string }) {
+export function ShareButton({ demoId }: { demoId: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
-    const url = `${window.location.origin}/demo/${uuid}`;
+    const url = `${window.location.origin}/demo/${demoId}`;
 
     if (navigator.share) {
       try {

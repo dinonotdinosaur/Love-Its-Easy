@@ -47,6 +47,11 @@ model Order {
   // как хэш, сверка на сервере при заходе на /q/[uuid].
   pinCodeHash String?
 
+  // Идентификатор публичной Shareable Demo (`/demo/[demoId]`). Обязан
+  // отличаться от `id`: по `id` открывается сам квест (`/q/[uuid]`) с
+  // реальными фото/текстами, а демо-ссылка расходится кому угодно (AGENTS.md §7).
+  demoId String @unique @default(uuid())
+
   // Поддомен вида slug.loveitseasy.ru — только для тарифа "Максимум".
   subdomainSlug String? @unique
 

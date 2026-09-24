@@ -9,11 +9,11 @@ import { ShareButton } from "./ShareButton";
 
 export function QuestView({
   pages,
-  uuid,
+  demoId,
   multiPage,
 }: {
   pages: ResolvedPageContent[];
-  uuid: string;
+  demoId: string;
   multiPage: boolean;
 }) {
   const [completed, setCompleted] = useState<Set<number>>(new Set());
@@ -41,7 +41,7 @@ export function QuestView({
         );
       })}
 
-      {allDone && <ShareButton uuid={uuid} />}
+      {allDone && <ShareButton demoId={demoId} />}
     </div>
   );
 }

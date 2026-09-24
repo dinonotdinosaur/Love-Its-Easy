@@ -55,5 +55,11 @@ export default async function QuestPage({ params }: PageProps<"/q/[uuid]">) {
     resolvePageContentPhotos(page, (key) => urlByKey.get(key) ?? ""),
   );
 
-  return <QuestView pages={resolvedPages} uuid={order.id} multiPage={content.pages.length > 1} />;
+  return (
+    <QuestView
+      pages={resolvedPages}
+      demoId={order.demoId}
+      multiPage={content.pages.length > 1}
+    />
+  );
 }

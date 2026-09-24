@@ -19,7 +19,9 @@ import { TEMPLATE_COMPONENTS } from "@/templates";
 export default async function DemoPage({ params }: PageProps<"/demo/[uuid]">) {
   const { uuid } = await params;
 
-  const order = await prisma.order.findUnique({ where: { id: uuid } });
+  // Сегмент называется `uuid`, но это `Order.demoId`, а НЕ `Order.id`: по
+  // `id` открывается настоящий квест, и демо-ссылка не должна его раскрывать.
+  const order = await prisma.order.findUnique({ where: { demoId: uuid } });
   if (!order || order.status !== "PAID" || !isOrderContent(order.content)) {
     notFound();
   }
