@@ -4,6 +4,7 @@ import { checkOrderPin } from "@/lib/access/pin";
 import { createPinToken, pinCookieName } from "@/lib/access/pin-session";
 import { prisma } from "@/lib/db/client";
 import { ruPlural } from "@/lib/format";
+import { readJsonObject } from "@/lib/http";
 
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
 const PIN_RE = /^\d{4}$/;
@@ -16,9 +17,14 @@ function formatRetryAfter(seconds: number): string {
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { orderId?: string; pin?: string };
+  const body = await readJsonObject(request);
 
-  if (typeof body.orderId !== "string" || typeof body.pin !== "string" || !PIN_RE.test(body.pin)) {
+  if (
+    !body ||
+    typeof body.orderId !== "string" ||
+    typeof body.pin !== "string" ||
+    !PIN_RE.test(body.pin)
+  ) {
     return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
   }
 

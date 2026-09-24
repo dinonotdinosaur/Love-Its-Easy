@@ -3,34 +3,28 @@ import { NextResponse } from "next/server";
 import { CONSENT_TEXT } from "@/lib/consent";
 import { prisma } from "@/lib/db/client";
 import { moderateOrderContent } from "@/lib/moderation";
+import { readJsonObject } from "@/lib/http";
 import {
   contentHasPhotos,
+  isOrderContent,
   sanitizeOrderContent,
   validateOrderContent,
-  type OrderContent,
 } from "@/lib/order-content";
 import { TARIFF_ID_TO_PRISMA_TARIFF, TARIFFS, type TariffId } from "@/lib/tariffs";
 
-interface CreateOrderBody {
-  tariffId: string;
-  email: string;
-  content: OrderContent;
-  consentGiven: boolean;
-}
-
 function isTariffId(value: string): value is TariffId {
-  return value in TARIFFS;
+  return Object.hasOwn(TARIFFS, value);
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as Partial<CreateOrderBody>;
+  const body = await readJsonObject(request);
 
   if (
+    !body ||
     typeof body.tariffId !== "string" ||
     !isTariffId(body.tariffId) ||
     typeof body.email !== "string" ||
-    !body.content ||
-    !Array.isArray(body.content.pages)
+    !isOrderContent(body.content)
   ) {
     return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
   }

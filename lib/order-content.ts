@@ -18,13 +18,42 @@ export interface OrderContent {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Проверка формы `Order.content` (JSON-поле из БД) перед рендером — данные пишет только наш код, но тип из Prisma — `unknown`. */
-export function isOrderContent(value: unknown): value is OrderContent {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isPlainObject(value) && Object.values(value).every((v) => typeof v === "string");
+}
+
+function isGroupItemContent(value: unknown): value is GroupItemContent {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    Array.isArray((value as { pages?: unknown }).pages)
+    isPlainObject(value) &&
+    isStringRecord(value.fields) &&
+    (value.photoKey === undefined || typeof value.photoKey === "string")
   );
+}
+
+function isPageContent(value: unknown): value is PageContent {
+  return (
+    isPlainObject(value) &&
+    typeof value.templateSlug === "string" &&
+    isStringRecord(value.fields) &&
+    isPlainObject(value.groups) &&
+    Object.values(value.groups).every(
+      (items) => Array.isArray(items) && items.every(isGroupItemContent),
+    )
+  );
+}
+
+/**
+ * Полная проверка формы `OrderContent`. Нужна в двух местах: для тела
+ * запроса в `/api/orders` (приходит от клиента как угодно — без проверки
+ * `sanitize`/`validate` падали на `undefined.trim()` и отдавали 500) и для
+ * JSON-поля `Order.content` из БД перед рендером (тип из Prisma — `unknown`).
+ */
+export function isOrderContent(value: unknown): value is OrderContent {
+  return isPlainObject(value) && Array.isArray(value.pages) && value.pages.every(isPageContent);
 }
 
 function isGroupItemEmpty(item: GroupItemContent): boolean {

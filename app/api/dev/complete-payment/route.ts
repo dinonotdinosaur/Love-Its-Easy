@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { readJsonObject } from "@/lib/http";
 import { fulfillPaidOrder, OrderNotPayableError } from "@/lib/payments/fulfill-order";
 
 /**
@@ -13,8 +14,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Недоступно в production" }, { status: 404 });
   }
 
-  const body = (await request.json()) as { orderId?: string };
-  if (!body.orderId) {
+  const body = await readJsonObject(request);
+  if (!body || typeof body.orderId !== "string") {
     return NextResponse.json({ error: "orderId обязателен" }, { status: 400 });
   }
 
