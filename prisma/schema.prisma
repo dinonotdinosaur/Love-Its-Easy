@@ -47,6 +47,14 @@ model Order {
   // как хэш, сверка на сервере при заходе на /q/[uuid].
   pinCodeHash String?
 
+  // Защита PIN от перебора (всего 10 000 вариантов) — см. lib/access/pin.ts.
+  // pinFailedAttempts — неудачные (и ещё проверяемые) попытки с последней
+  // блокировки; pinLockouts — сколько раз подряд уже блокировали, от него
+  // растёт длительность следующей блокировки.
+  pinFailedAttempts Int       @default(0)
+  pinLockouts       Int       @default(0)
+  pinLockedUntil    DateTime?
+
   // Идентификатор публичной Shareable Demo (`/demo/[demoId]`). Обязан
   // отличаться от `id`: по `id` открывается сам квест (`/q/[uuid]`) с
   // реальными фото/текстами, а демо-ссылка расходится кому угодно (AGENTS.md §7).

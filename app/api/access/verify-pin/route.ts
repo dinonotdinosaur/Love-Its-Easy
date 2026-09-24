@@ -1,15 +1,24 @@
 import { NextResponse } from "next/server";
 
-import { verifyPin } from "@/lib/access/pin";
+import { checkOrderPin } from "@/lib/access/pin";
 import { createPinToken, pinCookieName } from "@/lib/access/pin-session";
 import { prisma } from "@/lib/db/client";
+import { ruPlural } from "@/lib/format";
 
 const THIRTY_DAYS_SECONDS = 60 * 60 * 24 * 30;
+const PIN_RE = /^\d{4}$/;
+
+function formatRetryAfter(seconds: number): string {
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} ${ruPlural(minutes, ["минуту", "минуты", "минут"])}`;
+  const hours = Math.ceil(minutes / 60);
+  return `${hours} ${ruPlural(hours, ["час", "часа", "часов"])}`;
+}
 
 export async function POST(request: Request) {
   const body = (await request.json()) as { orderId?: string; pin?: string };
 
-  if (typeof body.orderId !== "string" || typeof body.pin !== "string") {
+  if (typeof body.orderId !== "string" || typeof body.pin !== "string" || !PIN_RE.test(body.pin)) {
     return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
   }
 
@@ -19,8 +28,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Неверный PIN" }, { status: 401 });
   }
 
-  const isValid = await verifyPin(body.pin, order.pinCodeHash);
-  if (!isValid) {
+  const result = await checkOrderPin(
+    { id: order.id, pinCodeHash: order.pinCodeHash, pinLockouts: order.pinLockouts },
+    body.pin,
+  );
+
+  if (result.status === "locked") {
+    return NextResponse.json(
+      {
+        error: `Слишком много неверных попыток. Попробуйте через ${formatRetryAfter(result.retryAfterSeconds)}.`,
+      },
+      { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } },
+    );
+  }
+
+  if (result.status === "invalid") {
     return NextResponse.json({ error: "Неверный PIN" }, { status: 401 });
   }
 
