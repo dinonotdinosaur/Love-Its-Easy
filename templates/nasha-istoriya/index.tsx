@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
@@ -18,7 +18,12 @@ export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
   const startDate = page.fields.startDate;
   const youtubeUrl = page.fields.youtubeUrl;
   const youtubeId = youtubeUrl ? extractYoutubeId(youtubeUrl) : null;
-  const [openPhoto, setOpenPhoto] = useState<string | null>(null);
+  const [openPhoto, setOpenPhoto] = useState<number | null>(null);
+  // layoutId в Framer Motion глобален для всей страницы: в "Для двоих" оба
+  // экземпляра шаблона давали одинаковые id, и лайтбокс анимировал фото
+  // с чужой страницы. Префикс useId делает их уникальными.
+  const layoutPrefix = useId();
+  const photoLayoutId = (index: number) => `${layoutPrefix}-milestone-photo-${index}`;
 
   // Нет отдельного интерактивного финала — страница пролистывается сразу целиком.
   useEffect(() => {
@@ -45,7 +50,6 @@ export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
 
       <div className="relative flex flex-col gap-8 border-l-2 border-rose-200 pl-6 dark:border-rose-900">
         {milestones.map((milestone, index) => {
-          const photoId = `milestone-photo-${index}`;
           return (
             <motion.div
               key={index}
@@ -61,10 +65,10 @@ export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
               )}
               {milestone.photoUrl && (
                 <motion.img
-                  layoutId={photoId}
+                  layoutId={photoLayoutId(index)}
                   src={milestone.photoUrl}
                   alt=""
-                  onClick={() => setOpenPhoto(photoId)}
+                  onClick={() => setOpenPhoto(index)}
                   className="mt-2 max-h-64 w-full cursor-zoom-in rounded-xl object-cover"
                 />
               )}
@@ -75,7 +79,7 @@ export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
       </div>
 
       <AnimatePresence>
-        {openPhoto && (
+        {openPhoto !== null && (
           <motion.div
             className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
             initial={{ opacity: 0 }}
@@ -84,8 +88,8 @@ export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
             onClick={() => setOpenPhoto(null)}
           >
             <motion.img
-              layoutId={openPhoto}
-              src={milestones.find((_, i) => `milestone-photo-${i}` === openPhoto)?.photoUrl}
+              layoutId={photoLayoutId(openPhoto)}
+              src={milestones[openPhoto]?.photoUrl}
               alt=""
               className="max-h-[85vh] max-w-full rounded-2xl object-contain"
             />
