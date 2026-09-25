@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { makeEmptyPageContent, type GroupItemContent, type PageContent } from "@/lib/order-content";
 import { TEMPLATE_FIELD_SCHEMAS, type SimpleField } from "@/lib/template-fields";
 import { TEMPLATE_TITLES, type TemplateSlug } from "@/lib/tariffs";
@@ -7,16 +9,19 @@ import { TEMPLATE_TITLES, type TemplateSlug } from "@/lib/tariffs";
 import { PhotoUploadField } from "./PhotoUploadField";
 
 function FieldInput({
+  id,
   field,
   value,
   onChange,
 }: {
+  /** Уникальный на странице: одни и те же field.key повторяются в каждом пункте группы и на каждой странице заказа. */
+  id: string;
   field: SimpleField;
   value: string;
   onChange: (value: string) => void;
 }) {
   const commonProps = {
-    id: field.key,
+    id,
     required: field.required,
     maxLength: field.maxLength,
     placeholder: field.placeholder,
@@ -29,7 +34,7 @@ function FieldInput({
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={field.key} className="text-sm font-medium">
+      <label htmlFor={id} className="text-sm font-medium">
         {field.label}
         {field.required && <span className="text-rose-500"> *</span>}
       </label>
@@ -78,6 +83,7 @@ export function TemplatePageForm({
 }) {
   const schema = TEMPLATE_FIELD_SCHEMAS[page.templateSlug as TemplateSlug];
   const templateSlug = page.templateSlug;
+  const idPrefix = useId();
 
   function setField(key: string, value: string) {
     onChange((prev) => ({ ...prev, fields: { ...prev.fields, [key]: value } }));
@@ -103,11 +109,11 @@ export function TemplatePageForm({
       {label && <h3 className="font-semibold">{label}</h3>}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${page.templateSlug}-template`} className="text-sm font-medium">
+        <label htmlFor={`${idPrefix}-template`} className="text-sm font-medium">
           Шаблон
         </label>
         <select
-          id={`${page.templateSlug}-template`}
+          id={`${idPrefix}-template`}
           value={page.templateSlug}
           onChange={(e) => {
             const slug = e.target.value;
@@ -126,6 +132,7 @@ export function TemplatePageForm({
       {schema.fields.map((field) => (
         <FieldInput
           key={field.key}
+          id={`${idPrefix}-${field.key}`}
           field={field}
           value={page.fields[field.key] ?? ""}
           onChange={(value) => setField(field.key, value)}
@@ -149,6 +156,7 @@ export function TemplatePageForm({
               {group.fields.map((field) => (
                 <FieldInput
                   key={field.key}
+                  id={`${idPrefix}-${group.key}-${index}-${field.key}`}
                   field={{ ...field, required: field.required && index < group.minItems }}
                   value={item.fields[field.key] ?? ""}
                   onChange={(value) =>
