@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(pinCookieName(order.id), createPinToken(order.id), {
+  response.cookies.set(pinCookieName(order.id), createPinToken(order.id, order.pinCodeHash), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

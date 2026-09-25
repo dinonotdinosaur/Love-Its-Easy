@@ -41,7 +41,7 @@ export default async function QuestPage({ params }: PageProps<"/q/[uuid]">) {
   if (order.pinCodeHash) {
     const cookieStore = await cookies();
     const token = cookieStore.get(pinCookieName(order.id))?.value;
-    if (!verifyPinToken(order.id, token)) {
+    if (!verifyPinToken(order.id, order.pinCodeHash, token)) {
       return <PinForm orderId={order.id} />;
     }
   }
