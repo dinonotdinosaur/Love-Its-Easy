@@ -1,4 +1,10 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
@@ -16,6 +22,7 @@ const client = new S3Client({
 });
 
 const MAX_SOURCE_BYTES = 15 * 1024 * 1024; // 15 МБ на исходный файл, до конвертации
+const UPLOADS_PREFIX = "uploads/";
 
 export class InvalidPhotoError extends Error {}
 
@@ -37,7 +44,7 @@ export async function uploadUserPhoto(source: Buffer): Promise<{ key: string }> 
   }
 
   const now = new Date();
-  const key = `uploads/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.webp`;
+  const key = `${UPLOADS_PREFIX}${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${randomUUID()}.webp`;
 
   await client.send(
     new PutObjectCommand({
@@ -49,6 +56,44 @@ export async function uploadUserPhoto(source: Buffer): Promise<{ key: string }> 
   );
 
   return { key };
+}
+
+/** Ключи всех загруженных фото, созданных раньше `before` (для очистки неиспользованных). */
+export async function listUploadedPhotosBefore(before: Date): Promise<string[]> {
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({
+        Bucket: process.env.S3_BUCKET,
+        Prefix: UPLOADS_PREFIX,
+        ContinuationToken: continuationToken,
+      }),
+    );
+    for (const object of page.Contents ?? []) {
+      if (object.Key && object.LastModified && object.LastModified < before) {
+        keys.push(object.Key);
+      }
+    }
+    continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (continuationToken);
+  return keys;
+}
+
+/** Удаляет фото пачками (лимит S3 API — 1000 ключей на запрос). */
+export async function deleteUserPhotos(keys: string[]): Promise<void> {
+  for (let i = 0; i < keys.length; i += 1000) {
+    const batch = keys.slice(i, i + 1000);
+    const result = await client.send(
+      new DeleteObjectsCommand({
+        Bucket: process.env.S3_BUCKET,
+        Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+      }),
+    );
+    if (result.Errors?.length) {
+      throw new Error(`S3 не удалил ${result.Errors.length} объект(ов): ${result.Errors[0].Message}`);
+    }
+  }
 }
 
 /** Скачивает фото из S3 обратно в память — нужно для передачи в NudeNet на модерацию. */
