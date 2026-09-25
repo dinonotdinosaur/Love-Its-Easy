@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import confetti from "canvas-confetti";
 
@@ -20,12 +20,18 @@ export default function TyProtivMenya({ page, onComplete }: TemplateProps) {
 
   const won = finished && questions.length > 0 && score >= Math.ceil(questions.length / 2);
 
+  // onComplete приходит новой функцией на каждый рендер родителя — в
+  // зависимостях эффекта он перезапускал конфетти при любом ререндере
+  // QuestView (появление ShareButton, завершение другой страницы).
+  const notifyComplete = useEffectEvent(() => onComplete?.());
+
   useEffect(() => {
-    if (finished) onComplete?.();
+    if (!finished) return;
+    notifyComplete();
     if (won) {
       confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
     }
-  }, [finished, won, onComplete]);
+  }, [finished, won]);
 
   function answer(choice: "A" | "B") {
     if (selected) return;
