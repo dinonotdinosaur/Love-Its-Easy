@@ -10,7 +10,8 @@ const uploadLimiter = createRateLimiter({ limit: 40, windowMs: 10 * 60 * 1000 })
 
 export async function POST(request: Request) {
   // До чтения тела — отказ не должен стоить нам приёма 15 МБ.
-  const limit = uploadLimiter.check(getClientIp(request));
+  // Без IP (нет прокси — локальная разработка) все попадают в одну корзину.
+  const limit = uploadLimiter.check(getClientIp(request) ?? "unknown");
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Слишком много загрузок. Попробуйте чуть позже." },

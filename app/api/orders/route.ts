@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { CONSENT_TEXT } from "@/lib/consent";
 import { prisma } from "@/lib/db/client";
 import { moderateOrderContent } from "@/lib/moderation";
-import { readJsonObject } from "@/lib/http";
+import { getClientIp, readJsonObject } from "@/lib/http";
 import {
   contentHasPhotos,
   isOrderContent,
@@ -60,7 +60,9 @@ export async function POST(request: Request) {
         consentLogs: {
           create: {
             consentText: CONSENT_TEXT,
-            ipAddress: request.headers.get("x-forwarded-for"),
+            // Сырой X-Forwarded-For клиент может подделать — берём адрес,
+            // дописанный нашим прокси (см. getClientIp, DEPLOY.md §1).
+            ipAddress: getClientIp(request),
             userAgent: request.headers.get("user-agent"),
           },
         },
@@ -77,7 +79,9 @@ export async function POST(request: Request) {
     where: { id: order.id },
     data: {
       status: moderation.passed ? "MODERATION_PASSED" : "MODERATION_FAILED",
-      moderationNote: moderation.passed ? null : moderation.failures.join("; "),
+      moderationNote: moderation.passed
+        ? null
+        : [...moderation.failures, ...moderation.errors].join("; "),
     },
   });
 

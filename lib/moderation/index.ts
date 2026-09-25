@@ -9,6 +9,17 @@ export interface ModerationResult {
   passed: boolean;
   /** Человекочитаемые причины отказа — показываются пользователю и пишутся в Order.moderationNote. */
   failures: string[];
+  /**
+   * Технические подробности сбоев сервисов модерации — только для
+   * Order.moderationNote и логов. Пользователю не показываются: там бывают
+   * внутренние детали вроде "OPENAI_API_KEY не настроен".
+   */
+  errors: string[];
+}
+
+function errorMessage(error: unknown): string {
+  // У части ошибок AWS SDK (например, недоступен S3) message пустой — тогда хотя бы имя.
+  return error instanceof Error ? error.message || error.name : "неизвестная ошибка";
 }
 
 /**
@@ -19,6 +30,7 @@ export interface ModerationResult {
  */
 export async function moderateOrderContent(content: OrderContent): Promise<ModerationResult> {
   const failures: string[] = [];
+  const errors: string[] = [];
 
   const textItems: { label: string; value: string }[] = [];
   const photoItems: { label: string; key: string }[] = [];
@@ -59,9 +71,8 @@ export async function moderateOrderContent(content: OrderContent): Promise<Moder
       if (flagged) failures.push(`Текст "${textItems[i].label}" не прошёл проверку`);
     });
   } catch (error) {
-    failures.push(
-      `Не удалось проверить тексты: ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
-    );
+    failures.push("Не удалось проверить тексты — попробуйте отправить ещё раз чуть позже");
+    errors.push(`Модерация текстов: ${errorMessage(error)}`);
   }
 
   // Фото — параллельно, сервис self-hosted, внешних лимитов нет.
@@ -72,12 +83,15 @@ export async function moderateOrderContent(content: OrderContent): Promise<Moder
         const result = await moderatePhoto(buffer);
         if (!result.safe) failures.push(`Фото "${label}" не прошло проверку`);
       } catch (error) {
-        failures.push(
-          `Не удалось проверить фото "${label}": ${error instanceof Error ? error.message : "неизвестная ошибка"}`,
-        );
+        failures.push(`Не удалось проверить фото "${label}" — попробуйте загрузить его заново`);
+        errors.push(`Фото "${label}" (${key}): ${errorMessage(error)}`);
       }
     }),
   );
 
-  return { passed: failures.length === 0, failures };
+  if (errors.length > 0) {
+    console.error("Сбой сервисов модерации:", errors);
+  }
+
+  return { passed: failures.length === 0, failures, errors };
 }
