@@ -18,6 +18,12 @@ export interface OrderContent {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Формат ключа, который выдаёт `uploadUserPhoto` (lib/storage/s3.ts). photoKey
+// приходит от клиента, и без проверки в заказ можно было вписать любой объект
+// бакета — /q/[uuid] выдал бы на него подписанную ссылку.
+const PHOTO_KEY_RE =
+  /^uploads\/\d{4}\/\d{2}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.webp$/;
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -134,6 +140,9 @@ export function validateOrderContent(
         if (item.photoKey) {
           if (!group.photoPerItem) {
             return `"${group.label}" не поддерживает фото`;
+          }
+          if (!PHOTO_KEY_RE.test(item.photoKey)) {
+            return `Некорректное фото в разделе "${group.label}"`;
           }
           photosOnPage += 1;
         }
