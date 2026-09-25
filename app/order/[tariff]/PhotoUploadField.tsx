@@ -5,10 +5,13 @@ import { useEffect, useState } from "react";
 export function PhotoUploadField({
   value,
   onChange,
+  onUploadingChange,
   disabled,
 }: {
   value?: string;
   onChange: (key: string | undefined) => void;
+  /** Форма блокирует отправку и смену шаблона, пока идёт загрузка. */
+  onUploadingChange: (uploading: boolean) => void;
   disabled?: boolean;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -30,6 +33,7 @@ export function PhotoUploadField({
     setError(null);
     setPreviewUrl(URL.createObjectURL(file));
     setUploading(true);
+    onUploadingChange(true);
 
     try {
       const formData = new FormData();
@@ -46,6 +50,7 @@ export function PhotoUploadField({
       onChange(undefined);
     } finally {
       setUploading(false);
+      onUploadingChange(false);
     }
   }
 

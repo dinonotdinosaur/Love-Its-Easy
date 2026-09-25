@@ -26,11 +26,18 @@ export function OrderForm({
   const [failures, setFailures] = useState<string[]>([]);
   const [failedOrderId, setFailedOrderId] = useState<string | null>(null);
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
+  // Загрузок фото в процессе — пока их больше нуля, отправлять нельзя:
+  // заказ ушёл бы без фото, которое ещё грузится.
+  const [uploadsInFlight, setUploadsInFlight] = useState(0);
 
   const photosAllowed = tariff.maxPhotos > 0;
 
-  function updatePage(index: number, page: PageContent) {
-    setPages((prev) => prev.map((p, i) => (i === index ? page : p)));
+  function updatePage(index: number, update: (prev: PageContent) => PageContent) {
+    setPages((prev) => prev.map((p, i) => (i === index ? update(p) : p)));
+  }
+
+  function handleUploadingChange(uploading: boolean) {
+    setUploadsInFlight((n) => n + (uploading ? 1 : -1));
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -84,9 +91,10 @@ export function OrderForm({
           label={tariff.pageCount > 1 ? `Страница ${index + 1}` : undefined}
           allowedTemplates={allowedTemplates}
           page={page}
-          onChange={(p) => updatePage(index, p)}
+          onChange={(update) => updatePage(index, update)}
           photosAllowed={photosAllowed}
           consentGiven={consentGiven}
+          onUploadingChange={handleUploadingChange}
         />
       ))}
 
@@ -136,10 +144,10 @@ export function OrderForm({
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || uploadsInFlight > 0}
         className="flex h-12 items-center justify-center rounded-full bg-rose-500 px-5 font-medium text-white transition-colors hover:bg-rose-600 disabled:opacity-50"
       >
-        {submitting ? "Отправляем…" : "Продолжить"}
+        {submitting ? "Отправляем…" : uploadsInFlight > 0 ? "Загружаем фото…" : "Продолжить"}
       </button>
 
       <p className="text-center text-xs text-zinc-400">

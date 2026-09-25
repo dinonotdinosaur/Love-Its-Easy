@@ -60,24 +60,42 @@ export function TemplatePageForm({
   onChange,
   photosAllowed,
   consentGiven,
+  onUploadingChange,
 }: {
   label?: string;
   allowedTemplates: TemplateSlug[];
   page: PageContent;
-  onChange: (page: PageContent) => void;
+  /**
+   * Принимает функцию-апдейтер, а не готовую страницу: загрузка фото
+   * асинхронная, и к её окончанию `page` из замыкания уже устарел — две
+   * параллельные загрузки затирали фото друг друга, а загрузка, завершившаяся
+   * после смены шаблона, откатывала форму на старый шаблон.
+   */
+  onChange: (update: (prev: PageContent) => PageContent) => void;
   photosAllowed: boolean;
   consentGiven: boolean;
+  onUploadingChange: (uploading: boolean) => void;
 }) {
   const schema = TEMPLATE_FIELD_SCHEMAS[page.templateSlug as TemplateSlug];
+  const templateSlug = page.templateSlug;
 
   function setField(key: string, value: string) {
-    onChange({ ...page, fields: { ...page.fields, [key]: value } });
+    onChange((prev) => ({ ...prev, fields: { ...prev.fields, [key]: value } }));
   }
 
-  function setGroupItem(groupKey: string, index: number, item: GroupItemContent) {
-    const items = [...(page.groups[groupKey] ?? [])];
-    items[index] = item;
-    onChange({ ...page, groups: { ...page.groups, [groupKey]: items } });
+  function updateGroupItem(
+    groupKey: string,
+    index: number,
+    update: (item: GroupItemContent) => GroupItemContent,
+  ) {
+    onChange((prev) => {
+      // Шаблон успели сменить (например, пока грузилось фото) — это
+      // изменение относится к уже выброшенному контенту.
+      if (prev.templateSlug !== templateSlug) return prev;
+      const items = [...(prev.groups[groupKey] ?? [])];
+      items[index] = update(items[index] ?? { fields: {} });
+      return { ...prev, groups: { ...prev.groups, [groupKey]: items } };
+    });
   }
 
   return (
@@ -91,7 +109,10 @@ export function TemplatePageForm({
         <select
           id={`${page.templateSlug}-template`}
           value={page.templateSlug}
-          onChange={(e) => onChange(makeEmptyPageContent(e.target.value))}
+          onChange={(e) => {
+            const slug = e.target.value;
+            onChange(() => makeEmptyPageContent(slug));
+          }}
           className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm dark:border-white/15 dark:bg-white/5"
         >
           {allowedTemplates.map((slug) => (
@@ -131,10 +152,10 @@ export function TemplatePageForm({
                   field={{ ...field, required: field.required && index < group.minItems }}
                   value={item.fields[field.key] ?? ""}
                   onChange={(value) =>
-                    setGroupItem(group.key, index, {
-                      ...item,
-                      fields: { ...item.fields, [field.key]: value },
-                    })
+                    updateGroupItem(group.key, index, (prev) => ({
+                      ...prev,
+                      fields: { ...prev.fields, [field.key]: value },
+                    }))
                   }
                 />
               ))}
@@ -142,7 +163,10 @@ export function TemplatePageForm({
                 <PhotoUploadField
                   value={item.photoKey}
                   disabled={!consentGiven}
-                  onChange={(key) => setGroupItem(group.key, index, { ...item, photoKey: key })}
+                  onChange={(key) =>
+                    updateGroupItem(group.key, index, (prev) => ({ ...prev, photoKey: key }))
+                  }
+                  onUploadingChange={onUploadingChange}
                 />
               )}
             </div>
