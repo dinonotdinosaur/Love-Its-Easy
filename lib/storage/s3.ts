@@ -12,7 +12,7 @@ import sharp from "sharp";
 const client = new S3Client({
   endpoint: process.env.S3_ENDPOINT,
   region: process.env.S3_REGION || "ru-central1",
-  // Провайдеры S3-совместимых хранилищ (MinIO, Timeweb, Yandex) обычно
+  // Провайдеры S3-совместимых хранилищ (RustFS локально, Timeweb, Yandex) обычно
   // требуют path-style обращение вместо virtual-hosted.
   forcePathStyle: true,
   credentials: {

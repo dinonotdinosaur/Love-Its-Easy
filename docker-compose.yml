@@ -14,36 +14,44 @@ services:
   # Локальная замена S3-хранилища RU-провайдера (Timeweb/Yandex) на время
   # разработки — тот же S3-совместимый протокол, реальный провайдер
   # подключается только сменой S3_* переменных в .env (AGENTS.md §2, §7).
-  minio:
-    image: minio/minio:latest
+  # RustFS вместо MinIO: образ minio/minio удалён с Docker Hub. Порты те же:
+  # 9000 — S3 API, 9001 — веб-консоль. Версия зафиксирована осознанно.
+  s3:
+    image: rustfs/rustfs:1.0.0
     restart: unless-stopped
-    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: loveitseasy
-      MINIO_ROOT_PASSWORD: loveitseasy123
+      RUSTFS_ACCESS_KEY: loveitseasy
+      RUSTFS_SECRET_KEY: loveitseasy123
+      RUSTFS_CONSOLE_ENABLE: "true"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio_data:/data
+      - s3_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:9000/health"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  # Одноразовый контейнер: создаёт бакет loveitseasy при первом старте
-  # и завершается (mc входит в образ minio/minio).
-  minio-init:
-    image: minio/minio:latest
+  # Одноразовый контейнер: создаёт бакет loveitseasy и завершается.
+  # Подписанный S3-запрос через curl --aws-sigv4 (curl есть в образе RustFS);
+  # повторное создание существующего бакета RustFS тоже отвечает 200.
+  s3-init:
+    image: rustfs/rustfs:1.0.0
     depends_on:
-      minio:
+      s3:
         condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 loveitseasy loveitseasy123 &&
-      mc mb --ignore-existing local/loveitseasy
-      "
+    entrypoint:
+      - curl
+      - -fsS
+      - --aws-sigv4
+      - aws:amz:us-east-1:s3
+      - --user
+      - loveitseasy:loveitseasy123
+      - -X
+      - PUT
+      - http://s3:9000/loveitseasy
 
   # Self-hosted NSFW-модерация (AGENTS.md §2, §7 — не заменять на платный
   # внешний SaaS без обсуждения). На проде — тот же образ на VPS.
@@ -61,4 +69,4 @@ services:
 
 volumes:
   postgres_data:
-  minio_data:
+  s3_data:
