@@ -4,7 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import type { TemplateProps } from "../types";
-import { extractYoutubeId, formatTogetherDuration } from "./duration";
+import { extractYoutubeId, formatRuDate, formatTogetherDuration } from "./duration";
 import { YoutubeEmbed } from "./YoutubeEmbed";
 
 /**
@@ -15,7 +15,7 @@ import { YoutubeEmbed } from "./YoutubeEmbed";
  * переход на передний план вместо резкой подмены.
  */
 export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
-  const startDate = page.fields.startDate;
+  const togetherFor = page.fields.startDate ? formatTogetherDuration(page.fields.startDate) : "";
   const youtubeUrl = page.fields.youtubeUrl;
   const youtubeId = youtubeUrl ? extractYoutubeId(youtubeUrl) : null;
   const [openPhoto, setOpenPhoto] = useState<number | null>(null);
@@ -39,10 +39,8 @@ export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-10 px-4 py-12">
       <div className="text-center">
         <h1 className="text-2xl font-bold sm:text-3xl">Наша история</h1>
-        {startDate && (
-          <p className="mt-2 text-lg text-rose-500">
-            Вместе уже {formatTogetherDuration(startDate)}
-          </p>
+        {togetherFor && (
+          <p className="mt-2 text-lg text-rose-500">Вместе уже {togetherFor}</p>
         )}
       </div>
 
@@ -61,7 +59,9 @@ export default function NashaIstoriya({ page, onComplete }: TemplateProps) {
             >
               <span className="absolute -left-[29px] top-1 h-3 w-3 rounded-full bg-rose-500" />
               {milestone.fields.date && (
-                <p className="text-xs font-medium text-rose-500">{milestone.fields.date}</p>
+                <p className="text-xs font-medium text-rose-500">
+                  {formatRuDate(milestone.fields.date)}
+                </p>
               )}
               {milestone.photoUrl && (
                 <motion.img
